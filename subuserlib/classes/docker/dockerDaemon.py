@@ -115,7 +115,7 @@ class DockerDaemon(UserOwnedObject):
     if not self.__connection:
       subuserlib.docker.getAndVerifyExecutable()
       try:
-        self.__connection = UHTTPConnection("/var/run/docker.sock")
+        self.__connection = UHTTPConnection("/run/user/1000/docker.sock")
       except PermissionError as e:
         sys.exit("Permission error (%s) connecting to the docker socket. This usually happens when you've added yourself as a member of the docker group but haven't logged out/in again before starting subuser."% str(e))
     return self.__connection
@@ -123,7 +123,7 @@ class DockerDaemon(UserOwnedObject):
   def getContainers(self,onlyRunning=False):
     queryParameters =  {'all': not onlyRunning}
     queryParametersString = urllib.parse.urlencode(queryParameters)
-    self.getConnection().request("GET","/v1.13/containers/json?"+queryParametersString)
+    self.getConnection().request("GET","/v1.24/containers/json?"+queryParametersString)
     response = self.getConnection().getresponse()
     if response.status == 200:
       return json.loads(response.read().decode("utf-8"))
@@ -141,7 +141,7 @@ class DockerDaemon(UserOwnedObject):
       return self.__imagePropertiesCache[imageTagOrId]
     except KeyError:
       pass
-    self.getConnection().request("GET","/v1.13/images/"+imageTagOrId+"/json")
+    self.getConnection().request("GET","/v1.24/images/"+imageTagOrId+"/json")
     response = self.getConnection().getresponse()
     if not response.status == 200:
       response.read() # Read the response and discard it to prevent the server from getting locked up: https://stackoverflow.com/questions/3231543/python-httplib-responsenotready
@@ -152,7 +152,7 @@ class DockerDaemon(UserOwnedObject):
       return properties
 
   def removeImage(self,imageId):
-    self.getConnection().request("DELETE","/v1.13/images/"+imageId)
+    self.getConnection().request("DELETE","/v1.24/images/"+imageId)
     response = self.getConnection().getresponse()
     if response.status == 404:
       raise ImageDoesNotExistsException("The image "+imageId+" could not be deleted.\n"+response.read().decode("utf-8"))
@@ -188,7 +188,7 @@ class DockerDaemon(UserOwnedObject):
         exclude = list(filter(bool, repositoryFileStructure.read(dockerignore).split('\n')))
     with tempfile.NamedTemporaryFile() as tmpArchive:
       archiveBuildContext(tmpArchive,relativeBuildContextPath=relativeBuildContextPath,repositoryFileStructure=repositoryFileStructure,excludePatterns=excludePatterns,dockerfile=dockerfile)
-      query = "/v1.18/build?"+queryParametersString
+      query = "/v1.24/build?"+queryParametersString
       self.user.registry.log(query)
       self.getConnection().request("POST",query,body=tmpArchive)
     try:
@@ -224,7 +224,7 @@ class DockerDaemon(UserOwnedObject):
     """
     Returns a dictionary of version info about the running Docker daemon.
     """
-    self.getConnection().request("GET","/v1.13/info")
+    self.getConnection().request("GET","/v1.24/info")
     response = self.getConnection().getresponse()
     if not response.status == 200:
       response.read() # Read the response and discard it to prevent the server from getting locked up: https://stackoverflow.com/questions/3231543/python-httplib-responsenotready
